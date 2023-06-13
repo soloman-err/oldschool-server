@@ -78,10 +78,10 @@ async function run() {
     };
 
     // user based APIs:
-    app.get('/users', verifyJWT, async (req, res) => {
+    app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
-      console.log(result);
+      // console.log(result);
     });
 
     app.post('/users', async (req, res) => {
@@ -89,6 +89,8 @@ async function run() {
       console.log(user);
       const query = { email: user?.email };
       const existingUser = await usersCollection.findOne(query);
+      console.log('existing user: ' + existingUser);
+
       if (existingUser) {
         return res.send({ message: 'User already exists!' });
       }
