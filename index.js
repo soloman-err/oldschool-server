@@ -6,9 +6,28 @@ const port = process.env.PORT || 2000;
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 
-// middleware:
+// const corsOptions = {
+//   origin: '*',
+//   credentials: true,
+//   optionSuccessStatus: 200,
+// };
+
 app.use(cors());
+
+app.use(function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'DELETE, PUT, GET, POST');
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept'
+  );
+  next();
+});
+
+// middleware:
+// app.use(cors());
 app.use(express.json());
+// app.use(cors(corsOptions));
 
 // jwt processor:
 const verifyJWT = (req, res, next) => {
@@ -149,10 +168,48 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/users/instructors', verifyJWT, async (req, res) => {
+    app.get('/users/instructors', async (req, res) => {
       const query = { role: 'instructor' };
       const result = await usersCollection.find(query).toArray();
       res.send(result);
+    });
+
+    // Finding Classes of individual instructor:
+    // app.get('/instructor-classes', async (req, res) => {
+    //   const instructors = await usersCollection
+    //     .find({ role: 'instructor' })
+    //     .toArray();
+
+    //   const instructorId = instructors.map((instructor) => instructor._id);
+
+    //   const instructorClasses = await classCollection
+    //     .find({
+    //       instructor: { $in: instructorId.map((id) => ObjectId(id)) },
+    //     })
+    //     .toArray();
+
+    //   const result = res.json(instructorClasses);
+    //   res.send(result);
+    //   console.log(result);
+    // });
+    app.get('/instructor-classes', async (req, res) => {
+      try {
+        const instructors = await usersCollection
+          .find({ role: 'instructor' })
+          .toArray();
+        const instructorIds = instructors.map((instructor) => instructor._id);
+
+        const instructorClasses = await classCollection
+          .find({
+            instructor: { $in: instructorIds.map((id) => new ObjectId(id)) },
+          })
+          .toArray();
+
+        res.json(instructorClasses);
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'An error occurred' });
+      }
     });
 
     // role management:
@@ -194,6 +251,7 @@ async function run() {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
       res.send(result);
+      console.log(result);
     });
 
     // delete a class::
