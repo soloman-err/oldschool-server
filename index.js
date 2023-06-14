@@ -149,6 +149,12 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/users/instructors', verifyJWT, async (req, res) => {
+      const query = { role: 'instructor' };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
     // role management:
     app.patch('/users/admin/:id', async (req, res) => {
       const id = req.params.id;
