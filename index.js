@@ -29,6 +29,7 @@ const verifyJWT = (req, res, next) => {
         .send({ error: true, message: 'Invalid authorization' });
     }
     req.decoded = decoded;
+    // console.log(req.decoded);
     next();
   });
 };
@@ -67,9 +68,26 @@ async function run() {
     // verify Admin:
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
+      console.log('verifyAdmin', email);
+
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       if (user?.role !== 'admin') {
+        return res
+          .status(403)
+          .send({ error: true, message: 'forbidden access' });
+      }
+      next();
+    };
+
+    // Verify Instructor:
+    const verifyInstructor = async (req, res, next) => {
+      const email = req.decoded.email;
+      console.log('verifyInstructor', email);
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== 'instructor') {
         return res
           .status(403)
           .send({ error: true, message: 'forbidden access' });
@@ -81,7 +99,6 @@ async function run() {
     app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
-      // console.log(result);
     });
 
     app.post('/users', async (req, res) => {
@@ -89,14 +106,47 @@ async function run() {
       console.log(user);
       const query = { email: user?.email };
       const existingUser = await usersCollection.findOne(query);
-      console.log('existing user: ' + existingUser);
-
       if (existingUser) {
         return res.send({ message: 'User already exists!' });
       }
       const result = await usersCollection.insertOne(user);
       res.send(result);
-      console.log(result);
+    });
+
+    // delete an user:
+    app.delete('/users/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await usersCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // Admin APIs:
+    app.get('/users/admin/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === 'admin' };
+      res.send(result);
+    });
+
+    // Instructor APIs:
+    app.get('/users/instructor/:email', verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ instructor: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { instructor: user?.role === 'instructor' };
+      res.send(result);
     });
 
     // role management:
@@ -114,6 +164,19 @@ async function run() {
       console.log(result);
     });
 
+    app.patch('/users/instructor/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updatedDoc = {
+        $set: {
+          role: 'instructor',
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updatedDoc);
+      res.send(result);
+      console.log('instructor', result);
+    });
+
     // class collection:
     app.get('/classes', async (req, res) => {
       const result = await classCollection.find().toArray();
@@ -124,6 +187,14 @@ async function run() {
     app.post('/classes', async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
+
+    // delete a class::
+    app.delete('/classes/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await classCollection.deleteOne(query);
       res.send(result);
     });
 
